@@ -4,31 +4,19 @@ on:
   push:
     branches:
       - develop
-
   workflow_dispatch:
-    inputs:
-      action:
-        description: "deploy or destroy"
-        required: true
-        default: deploy
-        type: choice
-        options:
-          - deploy
-          - destroy
 
 concurrency:
-  group: infra-cardops
-  cancel-in-progress: false
+  group: deploy-infra
+  cancel-in-progress: true
 
 jobs:
   deploy:
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'deploy')
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
       - name: Azure Login
         uses: azure/login@v1
@@ -39,20 +27,5 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      - name: Deploy Infrastructure
+      - name: Deploy infrastructure
         run: pwsh ./deploy.ps1
-
-  destroy:
-    if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Destroy Infrastructure
-        run: pwsh ./destroy.ps1

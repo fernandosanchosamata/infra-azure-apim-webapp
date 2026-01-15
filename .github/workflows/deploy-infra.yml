@@ -1,6 +1,10 @@
 name: deploy-infra
 
 on:
+  push:
+    branches:
+      - develop
+
   workflow_dispatch:
     inputs:
       action:

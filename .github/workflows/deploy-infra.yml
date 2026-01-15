@@ -3,8 +3,12 @@ name: deploy-infra
 on:
   push:
     branches:
-      - develop        # 👈 SOLO develop
-  workflow_dispatch:   # 👈 ejecución manual opcional
+      - develop
+  workflow_dispatch:
+
+permissions:
+  id-token: write    # 👈 OBLIGATORIO para azure/login
+  contents: read
 
 concurrency:
   group: deploy-infra-develop
@@ -18,13 +22,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 🔐 LOGIN CORRECTO A AZURE (SIN ERRORES DE PERMISOS)
+      # 🔐 LOGIN CORRECTO (OIDC)
       - name: Azure Login
         uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: 5f77615a-c480-4a23-89f5-c5888c8f53ec
+          subscription-id: 4a42d9ba-d900-40bd-93ea-6e3548f68daa
 
       # 🚀 DESPLIEGUE REAL
       - name: Deploy Infrastructure (APIM + WebApp)

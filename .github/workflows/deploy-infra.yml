@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - develop        # 👈 SOLO develop
-  workflow_dispatch:   # 👈 opcional, ejecución manual
+  workflow_dispatch:   # 👈 ejecución manual opcional
 
 concurrency:
   group: deploy-infra-develop
@@ -18,14 +18,14 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      # 🔐 LOGIN CORRECTO A AZURE (SIN ERRORES DE PERMISOS)
       - name: Azure Login
-        uses: azure/cli@v2
+        uses: azure/login@v1
         with:
-          inlineScript: |
-            az login --service-principal \
-              -u ${{ secrets.AZURE_CLIENT_ID }} \
-              -p ${{ secrets.AZURE_CLIENT_SECRET }} \
-              --tenant ${{ secrets.AZURE_TENANT_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: 5f77615a-c480-4a23-89f5-c5888c8f53ec
 
+      # 🚀 DESPLIEGUE REAL
       - name: Deploy Infrastructure (APIM + WebApp)
         run: pwsh ./deploy.ps1

@@ -1,46 +1,55 @@
 # ================================
-# Load variables (CORRECT WAY)
+# Load variables
 # ================================
 . "$PSScriptRoot/variables.ps1"
 
-Write-Host "RG=$RG"
-Write-Host "LOC=$LOC"
-Write-Host "WEBAPP_PLAN=$WEBAPP_PLAN"
-Write-Host "WEBAPP_NAME=$WEBAPP_NAME"
-Write-Host "APIM_NAME=$APIM_NAME"
-Write-Host "DOCKER_IMAGE=$DOCKER_IMAGE"
+Write-Host "Deploying INFRA only (no Docker deploy)"
 
 # ================================
 # Resource Group
 # ================================
-az group create --name $RG --location $LOC
+az group create `
+  --name $RG `
+  --location $LOC
 
 # ================================
-# App Service Plan (Linux - Cheap)
+# Log Analytics (required)
 # ================================
-az appservice plan create `
-  --name $WEBAPP_PLAN `
+$LAW_ID=$(az monitor log-analytics workspace create `
+  --resource-group $RG `
+  --workspace-name "$RG-law" `
+  --location $LOC `
+  --query id -o tsv)
+
+# ================================
+# Container Apps Environment
+# ================================
+az containerapp env create `
+  --name "$RG-env" `
   --resource-group $RG `
   --location $LOC `
-  --sku F1 `
-  --is-linux
+  --logs-workspace-id $LAW_ID
 
 # ================================
-# WebApp (Docker)
+# Container App (EMPTY / PLACEHOLDER)
 # ================================
-az webapp create `
+az containerapp create `
+  --name cardops-backend `
   --resource-group $RG `
-  --plan $WEBAPP_PLAN `
-  --name $WEBAPP_NAME `
-  --deployment-container-image-name $DOCKER_IMAGE
+  --environment "$RG-env" `
+  --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest `
+  --ingress external `
+  --target-port 80 `
+  --min-replicas 0 `
+  --max-replicas 1
 
 # ================================
-# Spring Boot Port
+# Get Container App URL
 # ================================
-az webapp config appsettings set `
+$BACKEND_URL=$(az containerapp show `
+  --name cardops-backend `
   --resource-group $RG `
-  --name $WEBAPP_NAME `
-  --settings WEBSITES_PORT=8080
+  --query properties.configuration.ingress.fqdn -o tsv)
 
 # ================================
 # API Management (Consumption)
@@ -54,21 +63,13 @@ az apim create `
   --sku-name Consumption
 
 # ================================
-# Get WebApp Host
-# ================================
-$WEBAPP_HOST = az webapp show `
-  --name $WEBAPP_NAME `
-  --resource-group $RG `
-  --query defaultHostName -o tsv
-
-# ================================
 # APIM Backend
 # ================================
 az apim backend create `
   --resource-group $RG `
   --service-name $APIM_NAME `
   --backend-id cardops-backend `
-  --url "https://$WEBAPP_HOST"
+  --url "https://$BACKEND_URL"
 
 # ================================
 # APIM API
@@ -79,7 +80,8 @@ az apim api create `
   --api-id cardops-api `
   --path cardops `
   --display-name "Card Ops API" `
-  --protocols https
+  --protocols https `
+  --subscription-required false
 
 # ================================
 # APIM Policy

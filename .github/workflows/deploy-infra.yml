@@ -24,6 +24,5 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 🚀 DESPLIEGUE
-      - name: Deploy Infrastructure (APIM + WebApp)
+      - name: Deploy Infrastructure
         run: pwsh ./deploy.ps1

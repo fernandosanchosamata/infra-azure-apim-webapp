@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "deploy or destroy"
+        description: "Choose action"
         required: true
         default: deploy
         type: choice
@@ -17,18 +17,18 @@ on:
           - destroy
 
 concurrency:
-  group: deploy-infra-develop
-  cancel-in-progress: true
+  group: infra-cardops
+  cancel-in-progress: false
 
 jobs:
-
   deploy:
-    if: ${{ github.event_name == 'push' || github.event.inputs.action == 'deploy' }}
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'deploy')
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Azure Login
         uses: azure/login@v1
@@ -42,21 +42,17 @@ jobs:
       - name: Deploy Infrastructure
         run: pwsh ./deploy.ps1
 
-
   destroy:
-    if: ${{ github.event.inputs.action == 'destroy' }}
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'destroy'
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: ☠️ Destroy Resource Group
-        run: |
-          echo "🔥 DESTROYING rg-cardops-demo"
-          az group delete \
-            --name rg-cardops-demo \
-            --yes \
-            --no-wait
+      - name: Destroy Infrastructure
+        run: pwsh ./destroy.ps1

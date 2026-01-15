@@ -3,7 +3,7 @@
 # ================================
 . "$PSScriptRoot/variables.ps1"
 
-Write-Host "Deploying INFRA only (NO real Docker deploy)"
+Write-Host "Deploying INFRA only (NO Docker real deploy)"
 
 # ================================
 # Resource Group
@@ -13,29 +13,25 @@ az group create `
   --location $LOC
 
 # ================================
-# Providers (safe & idempotent)
+# Register providers (SAFE)
 # ================================
-az provider register --namespace Microsoft.OperationalInsights --wait
+az provider register --namespace Microsoft.Web --wait
 az provider register --namespace Microsoft.App --wait
+az provider register --namespace Microsoft.OperationalInsights --wait
 az provider register --namespace Microsoft.ApiManagement --wait
 
 # ================================
-# Log Analytics Workspace
+# Log Analytics (REQUIRED)
 # ================================
 $LAW_NAME = "$RG-law"
 
-az monitor log-analytics workspace create `
+$LAW_ID = az monitor log-analytics workspace create `
   --resource-group $RG `
   --workspace-name $LAW_NAME `
-  --location $LOC
+  --location $LOC `
+  --query id -o tsv
 
-# 👉 ESTO ES LO QUE TE FALTABA 👇
-$LAW_CUSTOMER_ID = az monitor log-analytics workspace show `
-  --resource-group $RG `
-  --workspace-name $LAW_NAME `
-  --query customerId -o tsv
-
-$LAW_SHARED_KEY = az monitor log-analytics workspace get-shared-keys `
+$LAW_KEY = az monitor log-analytics workspace get-shared-keys `
   --resource-group $RG `
   --workspace-name $LAW_NAME `
   --query primarySharedKey -o tsv
@@ -49,11 +45,11 @@ az containerapp env create `
   --name $ENV_NAME `
   --resource-group $RG `
   --location $LOC `
-  --logs-workspace-id $LAW_CUSTOMER_ID `
-  --logs-workspace-key $LAW_SHARED_KEY
+  --logs-workspace-id $LAW_ID `
+  --logs-workspace-key $LAW_KEY
 
 # ================================
-# Container App (PLACEHOLDER)
+# Container App (PLACEHOLDER ONLY)
 # ================================
 az containerapp create `
   --name cardops-backend `
@@ -68,7 +64,7 @@ az containerapp create `
 # ================================
 # Get Backend URL
 # ================================
-$BACKEND_FQDN = az containerapp show `
+$BACKEND_URL = az containerapp show `
   --name cardops-backend `
   --resource-group $RG `
   --query properties.configuration.ingress.fqdn -o tsv
@@ -91,7 +87,7 @@ az apim backend create `
   --resource-group $RG `
   --service-name $APIM_NAME `
   --backend-id cardops-backend `
-  --url "https://$BACKEND_FQDN"
+  --url "https://$BACKEND_URL"
 
 # ================================
 # APIM API

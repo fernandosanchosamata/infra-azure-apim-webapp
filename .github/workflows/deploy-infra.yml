@@ -4,25 +4,59 @@ on:
   push:
     branches:
       - develop
+
   workflow_dispatch:
+    inputs:
+      action:
+        description: "deploy or destroy"
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - destroy
 
 concurrency:
   group: deploy-infra-develop
   cancel-in-progress: true
 
 jobs:
+
   deploy:
+    if: ${{ github.event_name == 'push' || github.event.inputs.action == 'deploy' }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 🔐 LOGIN CORRECTO CON CLIENT SECRET
       - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Upgrade Azure CLI
+        run: |
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+
       - name: Deploy Infrastructure
         run: pwsh ./deploy.ps1
+
+
+  destroy:
+    if: ${{ github.event.inputs.action == 'destroy' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ☠️ Destroy Resource Group
+        run: |
+          echo "🔥 DESTROYING rg-cardops-demo"
+          az group delete \
+            --name rg-cardops-demo \
+            --yes \
+            --no-wait

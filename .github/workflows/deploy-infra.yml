@@ -1,14 +1,10 @@
 name: deploy-infra
 
 on:
-  push:
-    branches:
-      - develop
-
   workflow_dispatch:
     inputs:
       action:
-        description: "Choose action"
+        description: "deploy or destroy"
         required: true
         default: deploy
         type: choice

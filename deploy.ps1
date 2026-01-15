@@ -22,7 +22,7 @@ az appservice plan create `
   --name $WEBAPP_PLAN `
   --resource-group $RG `
   --location $LOC `
-  --sku B1 `
+  --sku F1 `
   --is-linux
 
 # ================================

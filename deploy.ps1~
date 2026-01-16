@@ -70,11 +70,15 @@ az rest `
   }'
 
 # ================================
-# Policy (REST - FIXED)
+# Policy (REST)
 # ================================
-$policyUrl = "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/cardops-api/policies/policy?api-version=2022-08-01"
+$policyUrl = "$apiUrl/policies/policy?api-version=2022-08-01"
 
-$policyXml = @"
+az rest `
+  --method PUT `
+  --uri $policyUrl `
+  --headers @{ "Content-Type" = "application/vnd.ms-azure-apim.policy+xml" } `
+  --body @"
 <policies>
   <inbound>
     <base />
@@ -89,13 +93,6 @@ $policyXml = @"
   </outbound>
 </policies>
 "@
-
-az rest `
-  --method PUT `
-  --uri $policyUrl `
-  --headers "{ `"Content-Type`": `"application/vnd.ms-azure-apim.policy+xml`" }" `
-  --body $policyXml
-
 
 Write-Host "===================================="
 Write-Host "APIM READY (NO CLI BUGS)"

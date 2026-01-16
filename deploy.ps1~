@@ -10,7 +10,7 @@ Write-Host "Deploying INFRA + APIM POLICIES (backend placeholder)"
 # ================================
 az group create `
   --name $RG `
-  --location $LO
+  --location $LOC
 
 # ================================
 # Providers (idempotent)
@@ -50,7 +50,7 @@ az apim api create `
   --subscription-required false
 
 # ================================
-# POLICY (YA FUNCIONA)
+# POLICY
 # ================================
 az apim api policy set `
   --resource-group $RG `

@@ -12,14 +12,13 @@ az group create `
   --name $RG `
   --location $LOC
 
-# ================================
-# Providers (idempotent)
-# ================================
+# Providers
 az provider register --namespace Microsoft.ApiManagement --wait
 
-# ================================
-# API Management (Consumption)
-# ================================
+# APIM extension (CLAVE)
+az extension add --name apim --upgrade
+
+# API Management
 az apim create `
   --name $APIM_NAME `
   --resource-group $RG `
@@ -28,18 +27,14 @@ az apim create `
   --publisher-email "demo@demo.com" `
   --sku-name Consumption
 
-# ================================
-# BACKEND PLACEHOLDER (CLAVE)
-# ================================
+# Backend placeholder
 az apim backend create `
   --resource-group $RG `
   --service-name $APIM_NAME `
   --backend-id placeholder-backend `
   --url "https://httpbin.org"
 
-# ================================
 # API
-# ================================
 az apim api create `
   --resource-group $RG `
   --service-name $APIM_NAME `
@@ -49,9 +44,7 @@ az apim api create `
   --protocols https `
   --subscription-required false
 
-# ================================
-# POLICY
-# ================================
+# Policy
 az apim api policy set `
   --resource-group $RG `
   --service-name $APIM_NAME `
@@ -71,7 +64,6 @@ az apim api policy set `
   </outbound>
 </policies>
 "@
-
 Write-Host "===================================="
 Write-Host "APIM READY WITH POLICIES"
 Write-Host "Backend: PLACEHOLDER"

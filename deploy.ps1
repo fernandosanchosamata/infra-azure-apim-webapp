@@ -13,6 +13,40 @@ if (-not (az group exists --name $RG | ConvertFrom-Json)) {
 }
 
 # ================================
+# AKS (IDEMPOTENTE)
+# ================================
+Write-Host "Checking AKS..."
+
+$AKS_EXISTS = az aks show `
+  --resource-group $RG `
+  --name $AKS_NAME `
+  --query "name" `
+  -o tsv 2>$null
+
+if (-not $AKS_EXISTS) {
+  Write-Host "Creating AKS $AKS_NAME..."
+
+  az aks create `
+    --resource-group $RG `
+    --name $AKS_NAME `
+    --location $LOC `
+    --node-count 1 `
+    --node-vm-size $AKS_NODE_SIZE `
+    --enable-managed-identity `
+    --generate-ssh-keys
+
+} else {
+  Write-Host "AKS $AKS_NAME already exists"
+}
+
+Write-Host "Waiting for AKS to be ready..."
+az aks wait `
+  --resource-group $RG `
+  --name $AKS_NAME `
+  --created
+
+
+# ================================
 # Provider
 # ================================
 az provider register --namespace Microsoft.ApiManagement --wait

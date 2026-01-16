@@ -3,8 +3,9 @@ $LOC = "eastus"
 
 # AKS
 $AKS_NAME = "aks-cardops-demo"
-$AKS_NODE_SIZE = "Standard_B2s"
+$AKS_NODE_SIZE = "Standard_D2s_v3"
 $AKS_NODE_COUNT = 1
+
 
 # APIM
 $APIM_NAME = "apim-cardops-demo"

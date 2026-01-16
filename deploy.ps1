@@ -10,7 +10,7 @@ Write-Host "Deploying INFRA (AKS + APIM) — SAFE & IDEMPOTENT"
 # ================================
 if (-not (az group exists --name $RG | ConvertFrom-Json)) {
   Write-Host "Creating Resource Group $RG"
-  az group create --name $RG --location $LOC
+  az group create --name $RG --location $LOC | Out-Null
 } else {
   Write-Host "Resource Group $RG already exists"
 }
@@ -19,11 +19,11 @@ if (-not (az group exists --name $RG | ConvertFrom-Json)) {
 # Providers (MANDATORY)
 # ================================
 Write-Host "Registering Azure Providers..."
-az provider register --namespace Microsoft.ContainerService --wait
-az provider register --namespace Microsoft.ApiManagement --wait
+az provider register --namespace Microsoft.ContainerService --wait | Out-Null
+az provider register --namespace Microsoft.ApiManagement --wait | Out-Null
 
 # ================================
-# AKS (IDEMPOTENT)
+# AKS (IDEMPOTENT + SAFE)
 # ================================
 Write-Host "Checking AKS..."
 
@@ -42,7 +42,14 @@ if (-not $AKS_EXISTS) {
     --node-count $AKS_NODE_COUNT `
     --node-vm-size $AKS_NODE_SIZE `
     --enable-managed-identity `
-    --generate-ssh-keys
+    --generate-ssh-keys `
+    --only-show-errors `
+    --output none
+
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "AKS creation failed. Aborting pipeline."
+    exit 1
+  }
 } else {
   Write-Host "AKS $AKS_NAME already exists"
 }
@@ -69,7 +76,9 @@ if (-not $APIM_EXISTS) {
     --location $LOC `
     --publisher-name "Verdugox" `
     --publisher-email "demo@demo.com" `
-    --sku-name Consumption
+    --sku-name Consumption `
+    --only-show-errors `
+    --output none
 } else {
   Write-Host "APIM $APIM_NAME already exists"
 }
@@ -79,7 +88,7 @@ az apim wait --name $APIM_NAME --resource-group $RG --created
 Start-Sleep -Seconds 20
 
 # ================================
-# APIM Backend (REST — STABLE)
+# APIM Backend (REST)
 # ================================
 $backendUrl = "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/backends/placeholder-backend?api-version=2022-08-01"
 

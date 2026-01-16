@@ -3,18 +3,13 @@
 # ================================
 . "$PSScriptRoot/variables.ps1"
 
-Write-Host "Deploying INFRA + APIM POLICIES (idempotent)"
+Write-Host "Deploying INFRA + APIM POLICIES (REST based)"
 
 # ================================
 # Resource Group
 # ================================
 if (-not (az group exists --name $RG | ConvertFrom-Json)) {
-  Write-Host "Creating Resource Group $RG"
-  az group create `
-    --name $RG `
-    --location $LOC
-} else {
-  Write-Host "Resource Group $RG already exists"
+  az group create --name $RG --location $LOC
 }
 
 # ================================
@@ -23,16 +18,14 @@ if (-not (az group exists --name $RG | ConvertFrom-Json)) {
 az provider register --namespace Microsoft.ApiManagement --wait
 
 # ================================
-# API Management
+# APIM
 # ================================
 $APIM_EXISTS = az apim show `
   --name $APIM_NAME `
   --resource-group $RG `
-  --query name `
-  -o tsv 2>$null
+  --query name -o tsv 2>$null
 
 if (-not $APIM_EXISTS) {
-  Write-Host "Creating APIM $APIM_NAME"
   az apim create `
     --name $APIM_NAME `
     --resource-group $RG `
@@ -40,76 +33,52 @@ if (-not $APIM_EXISTS) {
     --publisher-name "Verdugox" `
     --publisher-email "demo@demo.com" `
     --sku-name Consumption
-} else {
-  Write-Host "APIM $APIM_NAME already exists"
 }
 
-# ⏳ Esperar APIM
-az apim wait `
-  --name $APIM_NAME `
-  --resource-group $RG `
-  --created
+az apim wait --name $APIM_NAME --resource-group $RG --created
 
 # ================================
-# BACKEND (create or update)
+# Backend (REST)
 # ================================
-$BACKEND_EXISTS = az apim backend show `
-  --resource-group $RG `
-  --service-name $APIM_NAME `
-  --backend-id placeholder-backend `
-  --query id `
-  -o tsv 2>$null
+$backendUrl = "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/backends/placeholder-backend?api-version=2022-08-01"
 
-if (-not $BACKEND_EXISTS) {
-  Write-Host "Creating backend placeholder-backend"
-  az apim backend create `
-    --resource-group $RG `
-    --service-name $APIM_NAME `
-    --backend-id placeholder-backend `
-    --url "https://httpbin.org"
-} else {
-  Write-Host "Updating backend placeholder-backend"
-  az apim backend update `
-    --resource-group $RG `
-    --service-name $APIM_NAME `
-    --backend-id placeholder-backend `
-    --url "https://httpbin.org"
-}
+az rest `
+  --method PUT `
+  --uri $backendUrl `
+  --body '{
+    "properties": {
+      "url": "https://httpbin.org",
+      "protocol": "http"
+    }
+  }'
 
 # ================================
-# API (create or skip)
+# API
 # ================================
-$API_EXISTS = az apim api show `
-  --resource-group $RG `
-  --service-name $APIM_NAME `
-  --api-id cardops-api `
-  --query name `
-  -o tsv 2>$null
+$apiUrl = "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/cardops-api?api-version=2022-08-01"
 
-if (-not $API_EXISTS) {
-  Write-Host "Creating API cardops-api"
-  az apim api create `
-    --resource-group $RG `
-    --service-name $APIM_NAME `
-    --api-id cardops-api `
-    --path cardops `
-    --display-name "Card Ops API" `
-    --protocols https `
-    --subscription-required false
-} else {
-  Write-Host "API cardops-api already exists"
-}
+az rest `
+  --method PUT `
+  --uri $apiUrl `
+  --body '{
+    "properties": {
+      "displayName": "Card Ops API",
+      "path": "cardops",
+      "protocols": ["https"],
+      "subscriptionRequired": false
+    }
+  }'
 
 # ================================
-# POLICY (ALWAYS UPDATE)
+# Policy (REST)
 # ================================
-Write-Host "Applying policy to API cardops-api"
+$policyUrl = "$apiUrl/policies/policy?api-version=2022-08-01"
 
-az apim api policy set `
-  --resource-group $RG `
-  --service-name $APIM_NAME `
-  --api-id cardops-api `
-  --xml-content @"
+az rest `
+  --method PUT `
+  --uri $policyUrl `
+  --headers @{ "Content-Type" = "application/vnd.ms-azure-apim.policy+xml" } `
+  --body @"
 <policies>
   <inbound>
     <base />
@@ -126,7 +95,7 @@ az apim api policy set `
 "@
 
 Write-Host "===================================="
-Write-Host "APIM READY (IDEMPOTENT)"
+Write-Host "APIM READY (NO CLI BUGS)"
 Write-Host "Backend: PLACEHOLDER"
-Write-Host "Safe to re-run N times"
+Write-Host "Safe & Idempotent"
 Write-Host "===================================="

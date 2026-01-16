@@ -9,3 +9,4 @@ $AKS_NODE_COUNT = 1
 # APIM
 $APIM_NAME = "apim-cardops-demo"
 
+$SUBSCRIPTION_ID = "4a42d9ba-d900-40bd-93ea-6e3548f68daa"

@@ -3,48 +3,108 @@
 # ================================
 . "$PSScriptRoot/variables.ps1"
 
-Write-Host "Deploying INFRA + APIM POLICIES (backend placeholder)"
+Write-Host "Deploying INFRA + APIM POLICIES (idempotent)"
 
 # ================================
 # Resource Group
 # ================================
-az group create `
-  --name $RG `
-  --location $LOC
+if (-not (az group exists --name $RG | ConvertFrom-Json)) {
+  Write-Host "Creating Resource Group $RG"
+  az group create `
+    --name $RG `
+    --location $LOC
+} else {
+  Write-Host "Resource Group $RG already exists"
+}
 
-# Providers
+# ================================
+# Provider
+# ================================
 az provider register --namespace Microsoft.ApiManagement --wait
 
-# APIM extension (CLAVE)
-az extension add --name apim --upgrade
-
+# ================================
 # API Management
-az apim create `
+# ================================
+$APIM_EXISTS = az apim show `
   --name $APIM_NAME `
   --resource-group $RG `
-  --location $LOC `
-  --publisher-name "Verdugox" `
-  --publisher-email "demo@demo.com" `
-  --sku-name Consumption
+  --query name `
+  -o tsv 2>$null
 
-# Backend placeholder
-az apim backend create `
+if (-not $APIM_EXISTS) {
+  Write-Host "Creating APIM $APIM_NAME"
+  az apim create `
+    --name $APIM_NAME `
+    --resource-group $RG `
+    --location $LOC `
+    --publisher-name "Verdugox" `
+    --publisher-email "demo@demo.com" `
+    --sku-name Consumption
+} else {
+  Write-Host "APIM $APIM_NAME already exists"
+}
+
+# ⏳ Esperar APIM
+az apim wait `
+  --name $APIM_NAME `
+  --resource-group $RG `
+  --created
+
+# ================================
+# BACKEND (create or update)
+# ================================
+$BACKEND_EXISTS = az apim backend show `
   --resource-group $RG `
   --service-name $APIM_NAME `
   --backend-id placeholder-backend `
-  --url "https://httpbin.org"
+  --query id `
+  -o tsv 2>$null
 
-# API
-az apim api create `
+if (-not $BACKEND_EXISTS) {
+  Write-Host "Creating backend placeholder-backend"
+  az apim backend create `
+    --resource-group $RG `
+    --service-name $APIM_NAME `
+    --backend-id placeholder-backend `
+    --url "https://httpbin.org"
+} else {
+  Write-Host "Updating backend placeholder-backend"
+  az apim backend update `
+    --resource-group $RG `
+    --service-name $APIM_NAME `
+    --backend-id placeholder-backend `
+    --url "https://httpbin.org"
+}
+
+# ================================
+# API (create or skip)
+# ================================
+$API_EXISTS = az apim api show `
   --resource-group $RG `
   --service-name $APIM_NAME `
   --api-id cardops-api `
-  --path cardops `
-  --display-name "Card Ops API" `
-  --protocols https `
-  --subscription-required false
+  --query name `
+  -o tsv 2>$null
 
-# Policy
+if (-not $API_EXISTS) {
+  Write-Host "Creating API cardops-api"
+  az apim api create `
+    --resource-group $RG `
+    --service-name $APIM_NAME `
+    --api-id cardops-api `
+    --path cardops `
+    --display-name "Card Ops API" `
+    --protocols https `
+    --subscription-required false
+} else {
+  Write-Host "API cardops-api already exists"
+}
+
+# ================================
+# POLICY (ALWAYS UPDATE)
+# ================================
+Write-Host "Applying policy to API cardops-api"
+
 az apim api policy set `
   --resource-group $RG `
   --service-name $APIM_NAME `
@@ -64,8 +124,9 @@ az apim api policy set `
   </outbound>
 </policies>
 "@
+
 Write-Host "===================================="
-Write-Host "APIM READY WITH POLICIES"
+Write-Host "APIM READY (IDEMPOTENT)"
 Write-Host "Backend: PLACEHOLDER"
-Write-Host "Next step: Jenkins updates backend URL"
+Write-Host "Safe to re-run N times"
 Write-Host "===================================="

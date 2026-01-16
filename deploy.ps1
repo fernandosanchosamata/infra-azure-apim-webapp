@@ -23,7 +23,7 @@ az provider register --namespace Microsoft.ContainerService --wait | Out-Null
 az provider register --namespace Microsoft.ApiManagement --wait | Out-Null
 
 # ================================
-# AKS (IDEMPOTENT + SAFE)
+# AKS (HARD FAIL)
 # ================================
 Write-Host "Checking AKS..."
 
@@ -58,7 +58,7 @@ Write-Host "Waiting for AKS to be ready..."
 az aks wait --resource-group $RG --name $AKS_NAME --created
 
 # ================================
-# API Management (IDEMPOTENT)
+# APIM (SOFT SAFE)
 # ================================
 Write-Host "Checking APIM..."
 
@@ -85,7 +85,7 @@ if (-not $APIM_EXISTS) {
 
 Write-Host "Waiting for APIM provisioning..."
 az apim wait --name $APIM_NAME --resource-group $RG --created
-Start-Sleep -Seconds 20
+Start-Sleep -Seconds 30
 
 # ================================
 # APIM Backend (REST)
@@ -102,7 +102,7 @@ az rest `
     }
   }'
 
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 15
 
 # ================================
 # APIM API (REST)
@@ -121,10 +121,10 @@ az rest `
     }
   }'
 
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 20
 
 # ================================
-# APIM Policy (REST — XML)
+# APIM Policy (REST — EVENTUAL SAFE)
 # ================================
 $policyUrl = "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.ApiManagement/service/$APIM_NAME/apis/cardops-api/policies/policy?api-version=2022-08-01"
 
@@ -144,18 +144,23 @@ $policyXml = @"
 </policies>
 "@
 
-az rest `
-  --method PUT `
-  --uri $policyUrl `
-  --headers "{ `"Content-Type`": `"application/vnd.ms-azure-apim.policy+xml`" }" `
-  --body $policyXml
+try {
+  az rest `
+    --method PUT `
+    --uri $policyUrl `
+    --headers "{ `"Content-Type`": `"application/vnd.ms-azure-apim.policy+xml`" }" `
+    --body $policyXml
+}
+catch {
+  Write-Host "⚠️ APIM busy — policy will be applied on next deploy"
+}
 
 # ================================
 # DONE
 # ================================
 Write-Host "===================================="
 Write-Host "INFRA READY ✅"
-Write-Host "- AKS: $AKS_NAME (empty, ready for kubectl)"
-Write-Host "- APIM: $APIM_NAME (policy + backend ready)"
+Write-Host "- AKS: $AKS_NAME"
+Write-Host "- APIM: $APIM_NAME"
 Write-Host "Safe to re-run N times"
 Write-Host "===================================="

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-infra
+  group: deploy-infra-develop
   cancel-in-progress: true
 
 jobs:
@@ -15,8 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Azure Login
         uses: azure/login@v1
@@ -27,5 +26,5 @@ jobs:
         run: |
           curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
-      - name: Deploy infrastructure
+      - name: Deploy Infrastructure (APIM + AKS EMPTY)
         run: pwsh ./deploy.ps1

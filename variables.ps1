@@ -1,3 +1,11 @@
-$RG="rg-cardops-demo"
-$LOC="eastus"
-$APIM_NAME="apim-cardops-demo"
+$RG = "rg-cardops-demo"
+$LOC = "eastus"
+
+# AKS
+$AKS_NAME = "aks-cardops-demo"
+$AKS_NODE_SIZE = "Standard_B2s"
+$AKS_NODE_COUNT = 1
+
+# APIM
+$APIM_NAME = "apim-cardops-demo"
+

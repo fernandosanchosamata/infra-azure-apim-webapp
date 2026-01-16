@@ -3,75 +3,19 @@
 # ================================
 . "$PSScriptRoot/variables.ps1"
 
-Write-Host "Deploying INFRA only (NO real Docker deploy)"
+Write-Host "Deploying INFRA + APIM POLICIES (backend placeholder)"
 
 # ================================
 # Resource Group
 # ================================
 az group create `
   --name $RG `
-  --location $LOC
+  --location $LO
 
 # ================================
-# Providers (safe & idempotent)
+# Providers (idempotent)
 # ================================
-az provider register --namespace Microsoft.OperationalInsights --wait
-az provider register --namespace Microsoft.App --wait
 az provider register --namespace Microsoft.ApiManagement --wait
-
-# ================================
-# Log Analytics Workspace
-# ================================
-$LAW_NAME = "$RG-law"
-
-az monitor log-analytics workspace create `
-  --resource-group $RG `
-  --workspace-name $LAW_NAME `
-  --location $LOC
-
-# 👉 ESTO ES LO QUE TE FALTABA 👇
-$LAW_CUSTOMER_ID = az monitor log-analytics workspace show `
-  --resource-group $RG `
-  --workspace-name $LAW_NAME `
-  --query customerId -o tsv
-
-$LAW_SHARED_KEY = az monitor log-analytics workspace get-shared-keys `
-  --resource-group $RG `
-  --workspace-name $LAW_NAME `
-  --query primarySharedKey -o tsv
-
-# ================================
-# Container Apps Environment
-# ================================
-$ENV_NAME = "$RG-env"
-
-az containerapp env create `
-  --name $ENV_NAME `
-  --resource-group $RG `
-  --location $LOC `
-  --logs-workspace-id $LAW_CUSTOMER_ID `
-  --logs-workspace-key $LAW_SHARED_KEY
-
-# ================================
-# Container App (PLACEHOLDER)
-# ================================
-az containerapp create `
-  --name cardops-backend `
-  --resource-group $RG `
-  --environment $ENV_NAME `
-  --image mcr.microsoft.com/azuredocs/containerapps-helloworld:latest `
-  --ingress external `
-  --target-port 80 `
-  --min-replicas 0 `
-  --max-replicas 1
-
-# ================================
-# Get Backend URL
-# ================================
-$BACKEND_FQDN = az containerapp show `
-  --name cardops-backend `
-  --resource-group $RG `
-  --query properties.configuration.ingress.fqdn -o tsv
 
 # ================================
 # API Management (Consumption)
@@ -85,16 +29,16 @@ az apim create `
   --sku-name Consumption
 
 # ================================
-# APIM Backend
+# BACKEND PLACEHOLDER (CLAVE)
 # ================================
 az apim backend create `
   --resource-group $RG `
   --service-name $APIM_NAME `
-  --backend-id cardops-backend `
-  --url "https://$BACKEND_FQDN"
+  --backend-id placeholder-backend `
+  --url "https://httpbin.org"
 
 # ================================
-# APIM API
+# API
 # ================================
 az apim api create `
   --resource-group $RG `
@@ -106,7 +50,7 @@ az apim api create `
   --subscription-required false
 
 # ================================
-# APIM Policy
+# POLICY (YA FUNCIONA)
 # ================================
 az apim api policy set `
   --resource-group $RG `
@@ -116,7 +60,8 @@ az apim api policy set `
 <policies>
   <inbound>
     <base />
-    <set-backend-service backend-id="cardops-backend" />
+    <rate-limit calls="100" renewal-period="60" />
+    <set-backend-service backend-id="placeholder-backend" />
   </inbound>
   <backend>
     <base />
@@ -126,3 +71,9 @@ az apim api policy set `
   </outbound>
 </policies>
 "@
+
+Write-Host "===================================="
+Write-Host "APIM READY WITH POLICIES"
+Write-Host "Backend: PLACEHOLDER"
+Write-Host "Next step: Jenkins updates backend URL"
+Write-Host "===================================="

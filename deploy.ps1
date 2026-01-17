@@ -21,6 +21,8 @@ if (-not (az group exists --name $RG | ConvertFrom-Json)) {
 Write-Host "Registering Azure Providers..."
 az provider register --namespace Microsoft.ContainerService --wait | Out-Null
 az provider register --namespace Microsoft.ApiManagement --wait | Out-Null
+az provider register --namespace Microsoft.DocumentDB --wait | Out-Null
+
 
 # ================================
 # AKS (HARD FAIL)
@@ -56,6 +58,69 @@ if (-not $AKS_EXISTS) {
 
 Write-Host "Waiting for AKS to be ready..."
 az aks wait --resource-group $RG --name $AKS_NAME --created
+
+# ================================
+# COSMOS DB (Mongo API) - IDEMPOTENT
+# ================================
+Write-Host "Checking Cosmos DB (Mongo API)..."
+
+$COSMOS_EXISTS = az cosmosdb show `
+  --name $COSMOS_ACCOUNT `
+  --resource-group $RG `
+  --query name -o tsv 2>$null
+
+if (-not $COSMOS_EXISTS) {
+  Write-Host "Creating Cosmos DB account $COSMOS_ACCOUNT (Mongo API)..."
+
+  az cosmosdb create `
+    --name $COSMOS_ACCOUNT `
+    --resource-group $RG `
+    --location $LOC `
+    --kind MongoDB `
+    --capabilities EnableMongo `
+    --default-consistency-level Session `
+    --only-show-errors `
+    --output none
+
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "Cosmos DB creation failed. Aborting pipeline."
+    exit 1
+  }
+} else {
+  Write-Host "Cosmos DB account $COSMOS_ACCOUNT already exists"
+}
+
+Write-Host "Waiting for Cosmos DB provisioning..."
+az cosmosdb wait --name $COSMOS_ACCOUNT --resource-group $RG --created
+
+# (Opcional) Asegurar DB en Cosmos Mongo
+Write-Host "Ensuring Cosmos Mongo database exists..."
+$DB_EXISTS = az cosmosdb mongodb database show `
+  --account-name $COSMOS_ACCOUNT `
+  --resource-group $RG `
+  --name $COSMOS_DB_NAME `
+  --query name -o tsv 2>$null
+
+if (-not $DB_EXISTS) {
+  az cosmosdb mongodb database create `
+    --account-name $COSMOS_ACCOUNT `
+    --resource-group $RG `
+    --name $COSMOS_DB_NAME `
+    --throughput $COSMOS_THROUGHPUT `
+    --only-show-errors `
+    --output none
+  Write-Host "Mongo DB $COSMOS_DB_NAME created"
+} else {
+  Write-Host "Mongo DB $COSMOS_DB_NAME already exists"
+}
+
+# Obtener connection string (NO lo imprimas en logs)
+$COSMOS_CONN = az cosmosdb keys list `
+  --name $COSMOS_ACCOUNT `
+  --resource-group $RG `
+  --type connection-strings `
+  --query "connectionStrings[0].connectionString" -o tsv
+
 
 # ================================
 # APIM (SOFT SAFE)
@@ -160,7 +225,10 @@ catch {
 # ================================
 Write-Host "===================================="
 Write-Host "INFRA READY ✅"
-Write-Host "- AKS: $AKS_NAME"
-Write-Host "- APIM: $APIM_NAME"
+Write-Host "- AKS       : $AKS_NAME"
+Write-Host "- APIM      : $APIM_NAME"
+Write-Host "- COSMOS DB : $COSMOS_ACCOUNT (Mongo API)"
+Write-Host "  Database  : $COSMOS_DB_NAME"
 Write-Host "Safe to re-run N times"
 Write-Host "===================================="
+

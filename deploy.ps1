@@ -139,6 +139,23 @@ $COSMOS_CONN = az cosmosdb keys list `
 
 
 # ================================
+# APIM SOFT-DELETE PURGE (MANDATORY)
+# ================================
+Write-Host "Checking APIM soft-deleted state..."
+
+try {
+  az apim deletedservice purge `
+    --service-name $APIM_NAME `
+    --location $LOC `
+    --only-show-errors
+}
+catch {
+  Write-Host "No APIM soft-deleted service to purge"
+}
+
+
+
+# ================================
 # APIM (SOFT SAFE)
 # ================================
 Write-Host "Checking APIM..."
@@ -167,6 +184,7 @@ if (-not $APIM_EXISTS) {
 Write-Host "Waiting for APIM provisioning..."
 az apim wait --name $APIM_NAME --resource-group $RG --created
 Start-Sleep -Seconds 30
+
 
 # ================================
 # APIM Backend (REST)

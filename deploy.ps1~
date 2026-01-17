@@ -45,6 +45,7 @@ if (-not $AKS_EXISTS) {
     --node-vm-size $AKS_NODE_SIZE `
     --enable-managed-identity `
     --generate-ssh-keys `
+    --enable-public-fqdn `
     --api-server-authorized-ip-ranges "0.0.0.0/0" `
     --only-show-errors `
     --output none

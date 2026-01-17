@@ -75,14 +75,13 @@ if (-not $COSMOS_EXISTS) {
   az cosmosdb create `
     --name $COSMOS_ACCOUNT `
     --resource-group $RG `
-    --location $LOC `
     --kind MongoDB `
     --capabilities EnableMongo `
     --default-consistency-level Session `
     --enable-free-tier true `
+    --locations regionName=$LOC failoverPriority=0 `
     --only-show-errors `
     --output none
-
 
   if ($LASTEXITCODE -ne 0) {
     Write-Error "Cosmos DB creation failed. Aborting pipeline."

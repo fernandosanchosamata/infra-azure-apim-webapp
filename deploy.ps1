@@ -79,8 +79,10 @@ if (-not $COSMOS_EXISTS) {
     --kind MongoDB `
     --capabilities EnableMongo `
     --default-consistency-level Session `
+    --enable-free-tier true `
     --only-show-errors `
     --output none
+
 
   if ($LASTEXITCODE -ne 0) {
     Write-Error "Cosmos DB creation failed. Aborting pipeline."
@@ -106,9 +108,9 @@ if (-not $DB_EXISTS) {
     --account-name $COSMOS_ACCOUNT `
     --resource-group $RG `
     --name $COSMOS_DB_NAME `
-    --throughput $COSMOS_THROUGHPUT `
     --only-show-errors `
     --output none
+
   Write-Host "Mongo DB $COSMOS_DB_NAME created"
 } else {
   Write-Host "Mongo DB $COSMOS_DB_NAME already exists"
@@ -225,10 +227,21 @@ catch {
 # ================================
 Write-Host "===================================="
 Write-Host "INFRA READY ✅"
-Write-Host "- AKS       : $AKS_NAME"
-Write-Host "- APIM      : $APIM_NAME"
-Write-Host "- COSMOS DB : $COSMOS_ACCOUNT (Mongo API)"
-Write-Host "  Database  : $COSMOS_DB_NAME"
-Write-Host "Safe to re-run N times"
+Write-Host ""
+Write-Host "AKS:"
+Write-Host " - Name     : $AKS_NAME"
+Write-Host ""
+Write-Host "APIM:"
+Write-Host " - Name     : $APIM_NAME"
+Write-Host ""
+Write-Host "COSMOS DB (Mongo API):"
+Write-Host " - Account  : $COSMOS_ACCOUNT"
+Write-Host " - Database : $COSMOS_DB_NAME"
+Write-Host " - Tier     : Free Tier (400 RU/s, 5GB)"
+Write-Host ""
+Write-Host "✔ All resources are created or already exist"
+Write-Host "✔ Script is SAFE & IDEMPOTENT"
+Write-Host "✔ Safe to re-run N times"
 Write-Host "===================================="
+
 

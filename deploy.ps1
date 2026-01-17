@@ -45,8 +45,11 @@ if (-not $AKS_EXISTS) {
     --node-vm-size $AKS_NODE_SIZE `
     --enable-managed-identity `
     --generate-ssh-keys `
+    --enable-public-fqdn `
+    --api-server-authorized-ip-ranges "0.0.0.0/0" `
     --only-show-errors `
     --output none
+
 
   if ($LASTEXITCODE -ne 0) {
     Write-Error "AKS creation failed. Aborting pipeline."
@@ -58,6 +61,16 @@ if (-not $AKS_EXISTS) {
 
 Write-Host "Waiting for AKS to be ready..."
 az aks wait --resource-group $RG --name $AKS_NAME --created
+
+Write-Host "Getting AKS credentials..."
+az aks get-credentials `
+  --resource-group $RG `
+  --name $AKS_NAME `
+  --overwrite-existing
+
+Write-Host "AKS FQDN:"
+az aks show --resource-group $RG --name $AKS_NAME --query fqdn -o tsv
+
 
 # ================================
 # COSMOS DB (Mongo API) - IDEMPOTENT
@@ -91,8 +104,11 @@ if (-not $COSMOS_EXISTS) {
   Write-Host "Cosmos DB account $COSMOS_ACCOUNT already exists"
 }
 
-Write-Host "Waiting for Cosmos DB provisioning..."
-az cosmosdb wait --name $COSMOS_ACCOUNT --resource-group $RG --created
+
+
+# ================================
+#AZURE COSMOS DB
+# ================================
 
 # (Opcional) Asegurar DB en Cosmos Mongo
 Write-Host "Ensuring Cosmos Mongo database exists..."
@@ -170,6 +186,7 @@ az rest `
 
 Start-Sleep -Seconds 15
 
+
 # ================================
 # APIM API (REST)
 # ================================
@@ -210,15 +227,21 @@ $policyXml = @"
 </policies>
 "@
 
-try {
-  az rest `
-    --method PUT `
-    --uri $policyUrl `
-    --headers "{ `"Content-Type`": `"application/vnd.ms-azure-apim.policy+xml`" }" `
-    --body $policyXml
-}
-catch {
-  Write-Host "⚠️ APIM busy — policy will be applied on next deploy"
+$maxRetries = 5
+for ($i = 1; $i -le $maxRetries; $i++) {
+  try {
+    az rest `
+      --method PUT `
+      --uri $policyUrl `
+      --headers "{ `"Content-Type`": `"application/vnd.ms-azure-apim.policy+xml`" }" `
+      --body $policyXml
+    Write-Host "APIM policy applied successfully"
+    break
+  }
+  catch {
+    Write-Host "APIM busy (attempt $i/$maxRetries), retrying..."
+    Start-Sleep -Seconds 15
+  }
 }
 
 # ================================

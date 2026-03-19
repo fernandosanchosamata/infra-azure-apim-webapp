@@ -70,7 +70,6 @@ az aks get-credentials `
 Write-Host "AKS FQDN:"
 az aks show --resource-group $RG --name $AKS_NAME --query fqdn -o tsv
 
-
 # ================================
 # COSMOS DB (Mongo API) - IDEMPOTENT
 # ================================

@@ -1,5 +1,5 @@
 $RG = "rg-cardops-demo"
-$LOC = "eastus2"
+$LOC = "centralus"
 
 # AKS
 $AKS_NAME = "aks-cardops-demo"

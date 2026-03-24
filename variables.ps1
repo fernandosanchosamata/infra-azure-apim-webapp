@@ -3,7 +3,7 @@ $LOC = "centralus"
 
 # AKS
 $AKS_NAME = "aks-cardops-demo"
-$AKS_NODE_SIZE = "Standard_B2s"
+$AKS_NODE_SIZE = "Standard_B2pls_v2"
 $AKS_NODE_COUNT = 1
 
 # APIM
